@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=1024, user-scalable=no">
+
+  <title>Free monads</title>
+
+  <!-- Required stylesheet -->
+  <link rel="stylesheet" media="screen" href="deck.js/core/deck.core.css">
+
+  <!-- Extension CSS files go here. Remove or add as needed. -->
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/goto/deck.goto.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/menu/deck.menu.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/navigation/deck.navigation.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/status/deck.status.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/scale/deck.scale.css">
+
+  <!-- Style theme. More available in /themes/style/ or create your own. -->
+  <link rel="stylesheet" media="screen" href="deck.js/themes/style/swiss.css">
+
+  <!-- Transition theme. More available in /themes/transition/ or create your own. -->
+  <link rel="stylesheet" media="screen" href="deck.js/themes/transition/fade.css">
+
+  <!-- Basic black and white print styles -->
+  <link rel="stylesheet" media="print" href="deck.js/core/print.css">
+
+  <!-- Required Modernizr file -->
+  <script src="deck.js/modernizr.custom.js"></script>
+</head>
+<body>
+  <div class="deck-container">
+
+    <!-- Begin slides. Just make elements with a class of slide. -->
+
+    <section class="slide">
+      <h1>Free monads</h1>
+    </section>
+
+    <section class="slide">
+      <h2>Who am I?</h2>
+      <ul>
+        <li>Jaakko Pallari</li>
+        <li>Software Engineer @ Cake Solutions</li>
+        <li>Mostly Scala during the day</li>
+        <li>Also sorts of other languages during the night</li>
+        <li>Twitter: @lepovirta</li>
+        <li>Homepage: jkpl.lepovirta.org</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Contents</h2>
+      <ul>
+        <li>Intro</li>
+        <li>The Free monad</li>
+        <li>Simple Free monad example</li>
+        <li>More practical example</li>
+        <li>"OK, why would you do that?" example</li>
+      </ul>
+    </section>
+    <section class="slide">
+      <h2>Notes</h2>
+      <ul>
+        <li>Examples in Haskell</li>
+        <li>Ideas can be applied to other languages</li>
+        <li>Lots of code</li>
+        <li>No category theory involved (sorry)</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>(Side) effects in FP languages</h2>
+      <ul>
+        <li>Avoid mutation and other uncontrolled side effects</li>
+        <li>Expose these features using monads</li>
+        <li>Monad API: simple, composable, extendable</li>
+        <li>Sugar: do-notation (Haskell), for-comprehension (Scala)</li>
+        <li>Combining monads: monad transformers</li>
+        <li>Monads are not the only solution: applicative functors, arrows</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Example monads</h2>
+      <ul>
+        <li>Error handling: Either</li>
+        <li>"Mutable" state: State</li>
+        <li>Shared immutable state: Reader</li>
+        <li>Writing logs: Writer</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Common patterns</h2>
+      <ul>
+        <li>Commands for operating on the context:</br>
+          <code>Left, Right, get, put, ask, tell</code>
+        </li>
+        <li>Monad API for joining computations together:</br>
+          <code>&gt;&gt;=, return</code>
+        </li>
+        <li>Separate function for evaluating the computation:</br>
+          <code>runState, runReader, runWriter</code>
+        </li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>DSL monad</h2>
+      <h3>Commands</h3>
+      <ul>
+        <li>Command set customized for domain specific needs</li>
+        <li>Queries: get users, find products</li>
+        <li>Effects: write to MQ, schedule a task</li>
+      </ul>
+      <h3>Interpreters</h3>
+      <ul>
+        <li>Separate interpreters independent of programs</li>
+        <li>Single-threaded interpreter</li>
+        <li>Multi-threaded interpreter</li>
+        <li>Interpreter for testing environment</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>The problem</h2>
+      <h3>Writing monads can be tedious</h3>
+      <ul>
+        <li>Not always easy to get right</li>
+        <li>Repetition</li>
+        <li>Monad laws</li>
+        <li>Usually involves collapsing &rarr; prevents interpreting</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Introducing the Free monad</h2>
+      <ul>
+        <li>General way of turning functors into monads</li>
+        <li><code>data Free f a = Pure a | Free (f (Free f a))</code></li>
+        <li>Given <code>f</code> is a functor, <code>Free f</code> is a monad.</li>
+        <li>Satisfies the monad laws, but doesn't do any collapsing</li>
+      </ul>
+      <pre><code>data Foo a = ...
+
+instance Functor Foo where
+  fmap f ... = ...
+
+type FreeFoo = Free Foo</pre></code>
+    </section>
+
+    <section class="slide">
+      <h2>Functor recap</h2>
+      <ul>
+        <li>Any data structure that is "mappable"</li>
+        <li><code>fmap :: Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b</code>
+        <li>e.g. list's <code>map</code> is <code>fmap</code> for lists</li>
+        <li>Laws
+          <ol>
+            <li><code>fmap id = id</code></li>
+            <li><code>fmap (g . f) = fmap g . fmap f</code></li>
+          </ol>
+        </li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Free monad implementation</h2>
+      <pre><code>data Free f a = Pure a | Free (f (Free f a))
+
+instance Functor f =&gt; Functor (Free f) where
+   fmap f (Pure a) = Pure (f a)
+   fmap f (Free functor) = Free (fmap (fmap f) functor)
+ 
+instance Functor f =&gt; Monad (Free f) where
+   return x = Pure x
+   Pure a &gt;&gt;= f = f a
+   Free functor &gt;&gt;= f = Free (fmap (&gt;&gt;= f) functor)
+
+liftF :: Functor f =&gt; f a -&gt; Free f a
+liftF f = Free (fmap Pure f)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Free monad transformer</h2>
+      <ul>
+        <li>Transformer variant of the Free monad</li>
+        <li>Same principle as in other transformers</li>
+        <li>Conveys the context of the parametrised monad</li>
+        <li>Slightly different structure</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>State monad</h2>
+      <p>Implementing state monad using the Free monad</p>
+      <ol>
+        <li>Create data type for commands</li>
+        <li>Add functor capabilities</li>
+        <li>Create interpreters</li>
+        <li>Create helper functions for commands</li>
+      </ol>
+    </section>
+
+    <section class="slide">
+      <h2>State monad: data type</h2>
+      <pre><code>data MyStateF s next
+  = Put s next
+  | Get (s -&gt; next)
+
+instance Functor (MyStateF s) where
+  fmap f (Put v n) = Put v (f n)
+  fmap f (Get g) = Get (f . g)
+
+type MyState s = Free (MyStateF s)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>State monad: interpreters</h2>
+      <h3>Normal</h3>
+      <pre><code>runMyState :: s -&gt; MyState s a -&gt; (a, s)
+runMyState _ (Free (Put v next)) = runMyState v next
+runMyState s (Free (Get next)) = runMyState s (next s)
+runMyState s (Pure a) = (a, s)</code></pre>
+
+      <h3>Print each step</h3>
+      <pre><code>runMyStateIO :: Show s =&gt; s -&gt; MyState s a -&gt; IO (a, s)
+runMyStateIO _ (Free (Put v next)) =
+  putStrLn ("Put: " ++ show v) &gt;&gt; runMyStateIO v next
+runMyStateIO s (Free (Get next)) =
+  putStrLn ("Get: " ++ show s) &gt;&gt; runMyStateIO s (next s)
+runMyStateIO s (Pure a) = return (a, s)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Example program</h2>
+      <pre><code>put :: s -&gt; MyState s ()
+put s = liftF (Put s ())
+
+get :: MyState s s
+get = liftF (Get id)      
+
+prog = do
+  x &lt;- get
+  v &lt;- return (x + 20)
+  put v
+  y &lt;- get
+  return (y - 10)
+
+runMyState 5 prog
+-- (15, 25)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Example program: tree</h2>
+      <pre><code>Free (
+  Get (\x -&gt;
+    Free (
+      Put (x + 20) (
+        Free (
+          Get (\y -&gt;
+            Pure (y - 10)
+          )
+        )
+      )
+    )
+  )
+)</pre></code>
+    </section>
+
+    <section class="slide">
+      <h2>DSL monad</h2>
+      <ul>
+        <li>Monad for custom commands</li>
+        <li>Command for printing text</li>
+        <li>Command for fetching resources</li>
+        <li>Fetch resources from a hash map</li>
+        <li>Fetch resources from Internet</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: data type</h2>
+      <pre><code>{-# LANGUAGE DeriveFunctor #-} 
+
+import qualified Data.Text as Text
+type Text = Text.Text
+      
+data Dsl next
+  = Print Text next
+  | FetchResource Text (Either Text Text -&gt; next)
+  deriving (Functor)
+
+type Program = Free Dsl
+
+printS :: Text -&gt; Program ()
+printS s = liftF (Print s ())
+
+fetch :: Text -&gt; Program (Either Text Text)
+fetch k = liftF (FetchResource k id)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: interpreter #1</h2>
+      <pre><code>import qualified Data.Map as Map
+
+runWithMap :: Map.Map String String -&gt; Program r -&gt; IO ()
+runWithMap m (Free (Print s n)) =
+  putStrLn (Text.unpack s) &gt;&gt; runWithMap m n
+runWithMap m (Free (FetchResource k n)) =
+  runWithMap m (n (lookupEither k m))
+runWithMap _ (Pure _) =
+  return ()
+      
+lookupEither :: Text -&gt; Map.Map Text v -&gt; Either Text v
+lookupEither k m = case Map.lookup k m of
+  Just v -&gt; Right v
+  Nothing -&gt; Left (Text.append &quot;No such key: &quot; k)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: sample program</h2>
+      <pre><code>import Control.Applicative
+
+prog = do
+  printS &quot;start!&quot;
+  x &lt;- fetch &quot;foo&quot;
+  y &lt;- fetch &quot;bar&quot;
+  z &lt;- fetch &quot;nope&quot;
+  result &lt;- return (Text.append &lt;$&gt; x &lt;*&gt; y)
+  printS (eitherText result)
+  printS (eitherText z)
+      
+eitherText :: Either Text Text -&gt; Text
+eitherText e = case e of
+  Left t -&gt; Text.append &quot;failed: &quot; t
+  Right t -&gt; Text.append &quot;success: &quot; t
+
+runWithMap (Map.fromList [("foo", "x"), ("bar", "y")]) prog
+-- start!
+-- success: xy
+-- failed: No such key: nope</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: HTTP requests</h2>
+      <pre><code>import Control.Lens
+import qualified Control.Exception as Exception
+import qualified Data.Text as Text
+import qualified Network.Wreq as Wreq
+import qualified Data.Text.Lazy.Encoding as Encoding
+import qualified Data.Text.Lazy as LText
+
+getBody :: Text -&gt; IO (Either Text Text)
+getBody url = Exception.handle handler (getBody' url)
+  where
+    handler (Exception.SomeException _) =
+      return . Left . Text.append &quot;Failed to fetch &quot; $ url
+
+getBody' :: Text -&gt; IO (Either Text Text)
+getBody' url = do
+  resp &lt;- Wreq.get (Text.unpack url)
+  let rawBody = resp ^. Wreq.responseBody
+  let body = LText.toStrict . Encoding.decodeUtf8 $ rawBody
+  return (Right body)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: HTTP interpreter</h2>
+      <pre><code>runWithHttp :: Program r -&gt; IO ()
+runWithHttp (Free (Print s n)) =
+  putStrLn (Text.unpack s) &gt;&gt; runWithHttp n
+runWithHttp (Free (FetchResource k n)) =
+  getBody k &gt;&gt;= runWithHttp . n
+runWithHttp (Pure _) =
+  return ()</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: sample program w/ HTTP</h2>
+      <pre><code>prog = do
+  printS &quot;start!&quot;
+  x &lt;- fetch &quot;https://jkpl.lepovirta.org&quot;
+  y &lt;- fetch &quot;https://notfound.example.org&quot;
+  printS (eitherText x)
+  printS (eitherText y)
+
+runWithHttp prog
+-- start!
+-- success: ...
+-- failed: Failed to fetch https://notfound.example.org</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad</h2>
+      <ul>
+        <li>Monad for expressing concurrency</li>
+        <li>Cooperative threads</li>
+        <li>Programs built out of interleavable parts</li>
+        <li>Commands: yield, fork, end</li>
+        <li>Interpreter:
+          <ol>
+            <li>Take part from queue</li>
+            <li>Evaluate the part</li>
+            <li>Push the next parts to queue</li>
+          </ol>
+        </li>
+        <li>Similar concept: trampolining</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad: functor &amp; monad</h2>
+      <pre><code>{-# LANGUAGE DeriveFunctor #-}
+
+import Control.Monad.Trans.Free
+
+data ThreadF next
+  = Yield next
+  | Fork next next
+  | Done
+  deriving (Functor)
+
+type Thread = FreeT ThreadF</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad: done &amp; yield</h2>
+      <pre><code>import Control.Monad.Trans
+
+done :: (Monad m) =&gt; Thread m r
+done = liftF Done
+
+yield :: (Monad m) =&gt; Thread m ()
+yield = liftF (Yield ())
+
+atom :: (Monad m) =&gt; m r -&gt; Thread m r
+atom m = do
+  v &lt;- lift m
+  yield
+  return v</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad: fork</h2>
+      <pre><code>fork :: (Monad m) =&gt; Thread m a -&gt; Thread m ()
+fork thread = do
+  child &lt;- liftF (Fork False True)
+  when child $ do
+    thread
+    done</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad: interpreter</h2>
+      <pre><code>run :: (Monad m) =&gt; Thread m a -&gt; m ()
+run t = runList [t]
+
+runList :: (Monad m) =&gt; [Thread m a] -&gt; m ()
+runList [] = return ()
+runList (t:ts) = do
+  x &lt;- runFreeT t
+  case x of
+    Free (Yield t1)   -&gt; runList (ts ++ [t1])
+    Free Done         -&gt; runList ts
+    Free (Fork t1 t2) -&gt; runList ((t1:ts) ++ [t2])
+    Pure _            -&gt; runList ts
+</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Concurrency monad: example program</h2>
+      <pre><code>prog = do
+  atom (putStrLn "start!")
+  fork (replicateM_ 3 (atom (putStrLn "thread 2")))
+  replicateM_ 5 (atom (putStrLn "thread 1"))
+      
+run prog
+-- start!
+-- thread 1
+-- thread 2
+-- thread 1
+-- thread 2
+-- thread 1
+-- thread 2
+-- thread 1
+-- thread 1</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Conclusions</h2>
+      <ul>
+        <li>Free monad programs are essentially lazy trees.</li>
+        <li>The functor defines the meaning and branching of trees.</li>
+        <li>The Free monad gives a functor its tree-like structure.</li>
+        <li>The Free monad gives functors monad capabilities.</li>
+        <li>Free monads preserve their structure, which allows different interpretations.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Sources</h2>
+      <ul>
+          <li><a href="http://comonad.com/reader/2008/monads-for-free/">Monads for Free</a></li>
+          <li><a href="http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html">You could have invented Free monads</a></li>
+          <li><a href="http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html">From zero to cooperative threads in 33 lines of Haskell code</a></li>
+          <li><a href="https://hackage.haskell.org/package/free">The free package</a></li>
+      </ul>
+    </section>
+
+    <!-- End slides. -->
+
+    <!-- Begin extension snippets. Add or remove as needed. -->
+
+    <!-- deck.navigation snippet -->
+    <div aria-role="navigation">
+      <a href="#" class="deck-prev-link" title="Previous">&#8592;</a>
+      <a href="#" class="deck-next-link" title="Next">&#8594;</a>
+    </div>
+
+    <!-- deck.status snippet -->
+    <p class="deck-status" aria-role="status">
+      <span class="deck-status-current"></span>
+      /
+      <span class="deck-status-total"></span>
+    </p>
+
+    <!-- deck.goto snippet -->
+    <form action="." method="get" class="goto-form">
+      <label for="goto-slide">Go to slide:</label>
+      <input type="text" name="slidenum" id="goto-slide" list="goto-datalist">
+      <datalist id="goto-datalist"></datalist>
+      <input type="submit" value="Go">
+    </form>
+
+    <!-- End extension snippets. -->
+  </div>
+
+<!-- Required JS files. -->
+<script src="deck.js/jquery.min.js"></script>
+<script src="deck.js/core/deck.core.js"></script>
+
+<!-- Extension JS files. Add or remove as needed. -->
+<script src="deck.js/extensions/goto/deck.goto.js"></script>
+<script src="deck.js/extensions/status/deck.status.js"></script>
+<script src="deck.js/extensions/navigation/deck.navigation.js"></script>
+<script src="deck.js/extensions/scale/deck.scale.js"></script>
+
+<!-- Initialize the deck. You can put this in an external file if desired. -->
+<script>
+  $(function() {
+    $.deck('.slide');
+  });
+</script>
+</body>
+</html>
