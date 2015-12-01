@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=1024, user-scalable=no">
+
+  <title>DSLs using Cats</title>
+
+  <!-- Required stylesheet -->
+  <link rel="stylesheet" media="screen" href="deck.js/core/deck.core.css">
+
+  <!-- Extension CSS files go here. Remove or add as needed. -->
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/goto/deck.goto.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/menu/deck.menu.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/navigation/deck.navigation.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/status/deck.status.css">
+  <link rel="stylesheet" media="screen" href="deck.js/extensions/scale/deck.scale.css">
+
+  <!-- Style theme. More available in /themes/style/ or create your own. -->
+  <link rel="stylesheet" media="screen" href="deck.js/themes/style/swiss.css">
+
+  <!-- Transition theme. More available in /themes/transition/ or create your own. -->
+  <link rel="stylesheet" media="screen" href="deck.js/themes/transition/fade.css">
+
+  <!-- Basic black and white print styles -->
+  <link rel="stylesheet" media="print" href="deck.js/core/print.css">
+
+  <!-- Required Modernizr file -->
+  <script src="deck.js/modernizr.custom.js"></script>
+</head>
+<body>
+  <div class="deck-container">
+
+    <!-- Begin slides. Just make elements with a class of slide. -->
+
+    <section class="slide">
+      <h1>DSLs using Cats</h1>
+    </section>
+
+    <section class="slide">
+      <h2>Who am I?</h2>
+      <ul>
+        <li>Jaakko Pallari</li>
+        <li>Software Engineer @ Cake Solutions</li>
+        <li>Mostly Scala during the day</li>
+        <li>Also sorts of other languages during the night</li>
+        <li>Twitter: <a href="https://twitter.com/lepovirta">@lepovirta</a></li>
+        <li>Homepage: <a href="https://jkpl.lepovirta.org/">jkpl.lepovirta.org</a></li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Contents</h2>
+      <ul>
+        <li>Intro</li>
+        <li>Things that are mappable &amp; flatMappable</li>
+        <li>Using Cats to leverage map &amp; flatMap</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Notes</h2>
+      <ul>
+        <li>Lots of code in Scala</li>
+        <li>Ideas can be applied to other languages.</li>
+        <li>Ask if something needs clarification.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: Domain Specific Language</h2>
+      <ul>
+        <li>"Mini-language" specialised for a particular domain</li>
+        <li>Usually comes with its own syntax</li>
+        <li>Reduced set of commands</li>
+        <li>Runtime independent</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Example DSL requirements</h2>
+      <p>Create a DSL which can...</p>
+      <ul>
+        <li>run any pure Scala code</li>
+        <li>print things</li>
+        <li>fetch/save values by key</li>
+      </ul>
+      <p>It should have two runtime environments</p>
+      <ul>
+        <li>test environment: fetch/save resources to a local map</li>
+        <li>production environment: fetch/save resources to a web resource</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits: the trait</h2>
+      <pre><code>trait Dsl {
+  def print(str: String): Unit
+  def save(key: String, value: String): Unit
+  def fetch(key: String): String
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits: program</h2>
+      <pre><code>def example(dsl: Dsl): Int = {
+  val x = dsl.fetch("resource1")
+  val y = dsl.fetch("resource2")
+  doAvgLen(dsl, x, y)
+}
+
+def doAvgLen(dsl: Dsl, x: String, y: String): Int = {
+  val avgLen = (x.length + y.length) / 2
+  dsl.print("resource1: " + x.take(avgLen)
+  dsl.print("resource2: " + y.take(avgLen)
+  dsl.save("avgLen", avgLen.toString)
+  avgLen
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits: in-memory</h2>
+      <pre><code>class InmemoryDsl(initialContents: Map[String, String])
+  extends Dsl {
+
+  private var contents = initialContents
+
+  def print(str: String): Unit = {
+    println(str)
+  }
+
+  def save(key: String, value: String): Unit = {
+    contents = contents + (key -&gt; value)
+  }
+
+  def fetch(key: String): String = {
+    contents.getOrElse(key, "No such key: " + key)
+  }
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits: HTTP</h2>
+      <pre><code>import scalaj.http._
+
+class HttpDsl(url: String) extends Dsl {
+  def print(str: String): Unit = {
+    println(str)
+  }
+
+  def save(key: String, value: String): Unit = {
+    Http(url).postForm(Seq(key -&gt; value)).asString
+  }
+
+  def fetch(key: String): String = {
+    Http(url).param("key", key).asString.body
+  }
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits: run it!</h2>
+      <pre><code>val m = Map(
+  &quot;resource1&quot; -&gt; &quot;Hello world!&quot;,
+  &quot;resource2&quot; -&gt; &quot;Scala Manchester is awesome!&quot;)
+
+// In-memory
+example(new InmemoryDsl(m))
+
+// HTTP
+example(new HttpDsl("http://example.org"))</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL using traits</h2>
+      <ul>
+        <li>Separation of concerns using traits (DI, IoC)</li>
+        <li>Command set passed around as an object</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>A new requirement appears!</h2>
+      <p>HTTP calls shouldn't block the main thread.
+        <ul>
+          <li>DSL commands can't return the values directly</li>
+          <li>All of the programs have to be adjusted for this</li>
+        </ul>
+      </p>
+      <p>Can the DSL be written in a way that's control flow agnostic?</p>
+    </section>
+
+    <section class="slide">
+      <h1>Let's talk about map &amp; flatMap first</h1>
+    </section>
+
+    <section class="slide">
+      <h2>Lists</h2>
+      <p>Map: apply function for all elements and collect the results</p>
+      <pre><code>List(1, 2, 3, 4).map(x =&gt; x * x) == List(1, 4, 9, 16)</code></pre>
+      <p>FlatMap: apply function for all elements, collect, and flatten the results</p>
+      <pre><code>List(5, 10).flatMap(x =&gt; List(x - 2, x + 2)) == List(3, 7, 8, 12)</code></pre>
+      <p>Works for vectors, sets, maps, and any old collection type</p>
+    </section>
+
+    <section class="slide">
+      <h2>Optional values</h2>
+      <p>Map: apply function if there's a value</p>
+      <pre><code>Some(1).map(x =&gt; x + 2) == Some(3)
+None.map(x =&gt; x + 2)    == None</code></pre>
+      <p>FlatMap: apply function if there's a value, and flatten.</p>
+      <pre><code>Some(3).flatMap(x =&gt; if (x &gt; 2) Some(10) else None) == Some(10)
+Some(1).flatMap(x =&gt; if (x &gt; 2) Some(10) else None) == None</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Syntactic sugar: lists</h2>
+      <pre><code>for {
+  x &lt;- List("a", "b")
+  y &lt;- List(1, 2, 3)
+} yield (x, y)
+
+List("a", "b").flatMap(
+  x =&gt; List(1, 2, 3).map(y =&gt; (x, y))
+)
+
+List(("a", 1), ("b", 1),
+     ("a", 2), ("b", 2),
+     ("a", 3), ("b", 3))</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Syntactic sugar: optional values</h2>
+      <pre><code>for {
+  x &lt;- Some(1)
+  y &lt;- Some(3)
+} yield x + y
+
+Some(1).flatMap(
+  x =&gt; Some(3).map(y =&gt; x + y)
+)
+
+Some(4)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Map &amp; FlatMap: summary</h2>
+      <ul>
+        <li>Applying functions over the values inside data structures</li>
+        <li>Handles unwrapping, wrapping, joining, and flattening.</li>
+        <li>For-comprehensions offer some syntactic sugar.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Why's this important?</h2>
+      <ul>
+        <li>Same ideas applicable for other computations</li>
+        <li>Hide computation combination behind map/flatMap</li>
+        <li>Domain logic separated from combination logic</li>
+      </ul>
+      <p>How about building our DSL around these ideas?</p>
+    </section>
+
+    <section class="slide">
+      <h1>Cats to the rescue</h1>
+    </section>
+
+    <section class="slide">
+      <h2>Cats</h2>
+      <ul>
+        <li>A library to provide abstractions for functional programming in Scala.</li>
+        <li>The relevant parts for today: Free &amp; Functor</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Cats: Functor</h2>
+      <ul>
+        <li>Something that is mappable.</li>
+        <li>list, vector, set, map, option etc.</li>
+        <li>The trait that provides the map method</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Functor example</h2>
+      <pre><code>import cats.Functor
+
+implicit val optionFunctor: Functor[Option] = new Functor[Option] {
+  def map[A, B](option: Option[A])(f: A =&gt; B): Option[B] =
+    option match {
+      case Some(value) =&gt; Some(f(value))
+      case None =&gt; None
+    }
+}
+
+Functor[Option].map(Some("hello")).map(s =&gt; s + "!")</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>Cats: Free</h2>
+      <ul>
+        <li>If a data type is a functor, the Free type will that type a flatMap implementation.</li>
+        <li>i.e. implement map, get flatMap for <em>free</em></li>
+        <li>Doesn't run the computation automatically.</li>
+        <li>Allows stepping through the computation.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>DSL built on Cats' Free</h2>
+      <ol>
+        <li>Define a mappable (functor) data type for the DSL.</li>
+        <li>Implement the map method.</li>
+        <li>Create convenient functions for operations.</li>
+        <li>Build programs.</li>
+        <li>Create interpreters for the DSL.</li>
+      </ol>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: the data structure</h2>
+      <ul>
+        <li>Command set as sealed trait</li>
+        <li>Each command is a sub type</li>
+        <li>Each command contains parameters and the next step</li>
+      </ul>
+      <pre><code>sealed trait Dsl[+Next]
+
+case class Print[Next](str: String, next: Next) extends Dsl[Next]
+
+case class Save[Next](key: String, value: String, next: Next) extends Dsl[Next]
+
+case class Fetch[Next](key: String, onResult: String =&gt; Next) extends Dsl[Next]</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: the map method</h2>
+      <pre><code>implicit val dslFunctor: Functor[Dsl] = new Functor[Dsl] {
+  def map[A, B](dsl: Dsl[A])(f: A =&gt; B): Dsl[B] =
+    dsl match {
+      case Print(str, next) =&gt; Print(str, f(next))
+      case Save(key, value, next) =&gt; Save(key, value, f(next))
+      case Fetch(key, next) =&gt;
+        Fetch(key, (str: String) =&gt; f(next(str)))
+    }
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: the type of a program</h2>
+      <ul>
+        <li>We now have a DSL that's mappable.</li>
+        <li>Free can provide the flatMap.</li>
+        <li>This is done by wrapping the DSL with the Free type</li>
+        <li>Free implements map &amp; flatMap while remaining compatible with the DSL type</li>
+      </ul>
+      <pre><code>import cats.free.Free
+
+type Program[A] = Free[Dsl, A]</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: convenient functions</h2>
+      <pre><code>def print(str: String): Program[Unit] =
+  Free.liftF(Print(str, ()))
+
+def save(key: String, value: String): Program[Unit] =
+  Free.liftF(Save(key, value, ()))
+
+def fetch(key: String): Program[String] =
+  Free.liftF(Fetch(key, identity))</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: example program</h2>
+      <pre><code>def example: Program[Int] = for {
+  x &lt;- fetch(&quot;resource1&quot;)
+  y &lt;- fetch(&quot;resource2&quot;)
+  avgLen &lt;- doAvg(x, y)
+} yield avgLen
+
+def doAvg(x: String, y: String): Program[Int] = for {
+  avgLen &lt;- Free.pure((x.length + y.length) / 2)
+  _ &lt;- print(&quot;resource1: &quot; + x.take(avgLen))
+  _ &lt;- print(&quot;resource2: &quot; + y.take(avgLen))
+  _ &lt;- save(&quot;avgLen&quot;, avgLen.toString)
+} yield avgLen</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: in-memory interpreter</h2>
+      <pre><code>type StrMap = Map[String, String]
+
+def executeWithMap[A](m: StrMap, program: Program[A]):
+  (A, StrMap) = {
+
+  def evaluateStep(step: Dsl[Program[A]]): (A, StrMap) =
+    step match {
+      case Print(str, next) =&gt;
+        println(str)
+        executeWithMap(m, next)
+
+      case Save(key, value, next) =&gt;
+        val nextMap = m + (key -&gt; value)
+        executeWithMap(nextMap, next)
+
+      case Fetch(key, next) =&gt;
+        val value = m.getOrElse(key, &quot;Not such key: &quot; + key)
+        executeWithMap(m, next(value))
+    }
+
+  program.fold(result =&gt; (result, m), evaluateStep)
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: async HTTP</h2>
+      <pre><code>import scalaj.http._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+val httpUrl = &quot;http://example.org&quot;
+
+def httpGet(key: String): Future[String] = Future {
+  Http(httpUrl).param(&quot;key&quot;, key).asString.body
+}
+
+def httpPost(key: String, value: String): Future[Unit] = Future {
+  Http(httpUrl).postForm(Seq(key -&gt; value)).asString
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: HTTP interpreter</h2>
+      <pre><code>def executeWithHttp[A](program: Program[A]): Future[A] = {
+  def evaluateStep(step: Dsl[Program[A]]): Future[A] =
+    step match {
+      case Print(str, next) =&gt;
+        println(str)
+        executeWithHttp(next)
+
+      case Save(key, value, next) =&gt;
+        httpPost(key, value).flatMap(
+          _ =&gt; executeWithHttp(next))
+
+      case Fetch(key, next) =&gt;
+        httpGet(key).flatMap(
+          value =&gt; executeWithHttp(next(value)))
+    }
+
+  program.fold(result =&gt; Future.successful(result), evaluateStep)
+}</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: run it!</h2>
+      <pre><code>val m = Map(
+  &quot;resource1&quot; -&gt; &quot;Hello world!&quot;,
+  &quot;resource2&quot; -&gt; &quot;Scala Manchester is awesome!&quot;
+)
+
+// Execute with in-memory interpreter
+executeWithMap(m, example)
+
+// Execute with HTTP interpreter
+executeWithHttp(example)</code></pre>
+    </section>
+
+    <section class="slide">
+      <h2>DSL: summary</h2>
+      <ul>
+        <li>Leveraged Free and Functor to create a DSL.</li>
+        <li>Multiple runtime environments through interpreters</li>
+        <li>Switched between control flows without affecting the DSL program</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>More possibilities in Free</h2>
+      <ul>
+        <li>Exception handling, jumps, termination</li>
+        <li>Branching execution paths (multithreading)</li>
+        <li>Program suspension</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h1>The Big Reveal</h1>
+    </section>
+
+    <section class="slide">
+      <h2>The Big Reveal</h2>
+      <ul>
+        <li>Cats as in category (theory)</li>
+        <li>Mappable = Functor</li>
+        <li>FlatMappable = Monad</li>
+        <li>Free = Free Monad</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Free Monad</h2>
+      <ul>
+        <li>Free monad programs are essentially lazy trees.</li>
+        <li>The functor defines the meaning and branching of trees.</li>
+        <li>The Free monad gives a functor its tree-like structure.</li>
+        <li>The Free monad gives functors monad capabilities.</li>
+        <li>Free monads preserve their structure, which allows different interpretations.</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>Sources</h2>
+      <ul>
+        <li><a href="http://comonad.com/reader/2008/monads-for-free/">Monads for Free</a></li>
+        <li><a href="http://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html">You could have invented Free monads</a></li>
+        <li><a href="http://non.github.io/cats/">Cats</a></li>
+      </ul>
+    </section>
+
+    <!-- End slides. -->
+
+    <!-- Begin extension snippets. Add or remove as needed. -->
+
+    <!-- deck.navigation snippet -->
+    <div aria-role="navigation">
+      <a href="#" class="deck-prev-link" title="Previous">&#8592;</a>
+      <a href="#" class="deck-next-link" title="Next">&#8594;</a>
+    </div>
+
+    <!-- deck.status snippet -->
+    <p class="deck-status" aria-role="status">
+      <span class="deck-status-current"></span>
+      /
+      <span class="deck-status-total"></span>
+    </p>
+
+    <!-- deck.goto snippet -->
+    <form action="." method="get" class="goto-form">
+      <label for="goto-slide">Go to slide:</label>
+      <input type="text" name="slidenum" id="goto-slide" list="goto-datalist">
+      <datalist id="goto-datalist"></datalist>
+      <input type="submit" value="Go">
+    </form>
+
+    <!-- End extension snippets. -->
+  </div>
+
+<!-- Required JS files. -->
+<script src="deck.js/jquery.min.js"></script>
+<script src="deck.js/core/deck.core.js"></script>
+
+<!-- Extension JS files. Add or remove as needed. -->
+<script src="deck.js/extensions/goto/deck.goto.js"></script>
+<script src="deck.js/extensions/status/deck.status.js"></script>
+<script src="deck.js/extensions/navigation/deck.navigation.js"></script>
+<script src="deck.js/extensions/scale/deck.scale.js"></script>
+
+<!-- Initialize the deck. You can put this in an external file if desired. -->
+<script>
+  $(function() {
+    $.deck('.slide');
+  });
+</script>
+</body>
+</html>
