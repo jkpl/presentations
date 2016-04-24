@@ -1,0 +1,395 @@
+<!doctype html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Introduction to Apache Spark</title>
+
+	<link rel="stylesheet" href="reveal.js/css/reveal.css">
+	<link rel="stylesheet" href="reveal.js/css/theme/night.css">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+	<!-- Printing and PDF exports -->
+	<script>
+	  var link = document.createElement( 'link' );
+	  link.rel = 'stylesheet';
+	  link.type = 'text/css';
+	  link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	  document.getElementsByTagName( 'head' )[0].appendChild( link );
+	</script>
+  </head>
+  <body>
+	<div class="reveal">
+	  <div class="slides">
+		<section>
+          <h1>Introduction to Apache Spark</h1>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Who am I?
+
+            Jaakko Pallari
+
+            Software Engineer @ Cake Solutions
+
+            Scala dev since late 2013
+
+            Certified Spark developer
+
+            [Lepo.IO](https://lepo.io/) group member
+
+            Homepage: <https://lepo.io/team/jkpl>
+
+            Twitter: [@lepovirta](https://twitter.com/lepovirta)
+          </script>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Contents
+
+            1. What is Spark?
+            2. Spark feature overview
+            3. Setting up Spark
+            4. Spark by example
+          </script>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## What is Spark?
+
+              * Engine for large-scale data processing (similar to Hadoop)
+              * Batch processing similar to MapReduce
+              * Near realt-time stream processing
+              * Leverages FP core concepts.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Who is developing/using it?
+
+              * Developed by [Databricks](https://databricks.com/) as an Apache project.
+              * Project started 2009.
+              * 1.0 released in 5/2014.
+              * Latest version 1.6.1 released 3/2016.
+
+              > As of early 2015, surveys show that more than 500 organizations are using Spark in production.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### When to use it?
+
+              Best suited for large-scale offline parallel data processing.
+
+              Best performance gained with large amount nodes.
+
+              Can also be used for small data, ad-hoc processing (e.g. toying in REPL), and stream processing.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Spark features
+
+              * Language bindings: Scala, Java, Python, R
+              * Cluster managers: Amazon EC2, Mesos, Hadoop YARN, standalone
+              * Storage layers: Amazon S3, Hadoop's HDFS, regular FS
+              * Modules: Spark Streaming, Spark SQL, MLlib, GraphX
+              * Interactive shell
+              * Cluster monitoring
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Setting up Spark
+
+              Downloading Spark distribution, and using Spark as a dependency.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Downloading Spark
+
+              ```
+              $ curl -OL 'http://www-eu.apache.org/dist/spark/spark-1.6.1/spark-1.6.1-bin-hadoop2.6.tgz'
+              $ tar xzf spark-1.6.1-bin-hadoop2.6.tgz
+              $ cd spark-1.6.1-bin-hadoop2.6
+              $ ./bin/spark-shell
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Setting up a Spark project
+
+              build.sbt:
+
+              ```scala
+              name := "myproject"
+
+              version := "1.0"
+
+              scalaVersion := "2.11.8"
+
+              libraryDependencies += "org.apache.spark" %% "spark-core" % "1.6.1"
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Spark by example
+
+              Figure out the 20 most commonly words used in film tag lines that are at least 5 letters long.
+
+              File format:
+
+              ```
+              # Lock, Stock and Two Smoking Barrels (1998)
+                    A Disgrace to Criminals Everywhere.
+                    They lost half a million at cards but they've still got a few tricks up their sleeve
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Configuration and context
+
+              ```scala
+              import org.apache.spark.SparkContext
+              import org.apache.spark.SparkContext._
+              import org.apache.spark.SparkConf
+
+
+              object Main {
+                def main(args: Array[String]): Unit = {
+                  val conf = new SparkConf().setAppName("myproject")
+                  val sc = new SparkContext(conf)
+
+                  // rest of the code goes here
+                }
+              }
+              ```
+
+              `SparkContext` is the main entry point for Spark functionality.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Loading a data set
+
+              ```scala
+              import org.apache.spark.rdd.RDD
+
+              val file: RDD[String] = sc.textFile("data/taglines.txt")
+              ```
+
+              * Using `SparkContext` to load files from local FS.
+              * Produces an `RDD[String]`
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### What's an RDD?
+
+              * Resilient Distributed Dataset
+              * Representation of data to which to build computations on.
+              * Immutable, non-strict
+              * API similar to Scala and Java 8 streams
+              * e.g. `RDD[String]` is a dataset of strings
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Extracting interesting information (mapping)
+
+              ```scala
+              val file: RDD[String]    = sc.textFile("data/taglines.txt")
+              val trimmed: RDD[String] = file.map(line => line.trim)
+              val cleaned: RDD[String] = trimmed.filter(line => line.nonEmpty && !line.startsWith("#"))
+
+              val words: RDD[String] = cleaned.flatMap(line => line.split(" "))
+              val wordsLowerCase = words.map(word => word.toLowerCase())
+              val wordsCleaned = wordsLowerCase.filter(word => word.length > 5)
+              ```
+
+              Manipulating data set using pure functions
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Counting occurrences (reducing)
+
+              ```scala
+              val wordsSeeded:  RDD[(String, Int)] = wordsCleaned.map(word => (word, 1))
+              val wordsCounted: RDD[(String, Int)] = wordsSeeded.reduceByKey((a, b) => a + b)
+              ```
+
+              * Set an initial number of occurrences for each value.
+              * Combine occurrences where keys match using given pure function.
+              * Why not use `groupBy`?
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Sorting the data (shuffling)
+
+              ```scala
+              val sortedWords = wordsCounted.sortBy(pair => pair._2, ascending=false)
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Gettings results (actions)
+
+              ```scala
+              val top20: Array[(String, Int)] = sortedWords.take(20)
+              println(top20.mkString("\n"))
+              ```
+
+              Actions cause RDDs to be evaluated.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Running the program
+
+              Create a JAR and run it using `spark-submit`.
+
+              ```
+              $ sbt assembly
+              $ spark-submit \
+                  --class "myproject.Main" \
+                  --master local[4] \
+                  target/scala-2.11/myproject_2.11-1.0.jar
+              ```
+
+              * `--class`: name of the main class to run
+              * `--master`: URL to the Spark cluster master
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Results
+
+              ```
+              ((original,7099)
+              (poster),2655)
+              (sometimes,2205)
+              (comedy,2078)
+              (people,1773)
+              (there's,1761)
+              (you're,1661)
+              (always,1584)
+              (they're,1564)
+              (adventure,1513)
+              (little,1511)
+              (family,1505)
+              (between,1468)
+              (everything,1436)
+              (through,1434)
+              (greatest,1423)
+              (nothing,1309)
+              (things,1306)
+              (you'll,1286)
+              (journey,1263)
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Full code
+
+              ```scala
+              package myproject
+
+              import org.apache.spark.SparkContext
+              import org.apache.spark.SparkContext._
+              import org.apache.spark.SparkConf
+
+              object Main {
+                def main(args: Array[String]): Unit = {
+                  val conf = new SparkConf().setAppName("myproject")
+                  val sc = new SparkContext(conf)
+
+                  val file = sc.textFile("data/taglines.txt")
+                  val trimmed = file.map(line => line.trim)
+                  val cleaned = trimmed.filter(line => line.nonEmpty && !line.startsWith("#"))
+
+                  val words = cleaned.flatMap(line => line.split(" "))
+                  val wordsLowerCase = words.map(word => word.toLowerCase())
+                  val wordsCleaned = wordsLowerCase.filter(word => word.length > 5)
+
+                  val wordsSeeded = wordsCleaned.map(word => (word, 1))
+                  val wordsCounted = wordsSeeded.reduceByKey((a, b) => a + b)
+
+                  val sortedWords = wordsCounted.sortBy(pair => pair._2, ascending=false)
+
+                  val top20 = sortedWords.take(20)
+                  println(top20.mkString("\n"))
+                }
+              }
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Thank you
+
+            For more Spark, check out their [docs](https://spark.apache.org/docs/latest/).
+          </script>
+        </section>
+	  </div>
+	</div>
+
+	<script src="reveal.js/lib/js/head.min.js"></script>
+	<script src="reveal.js/js/reveal.js"></script>
+
+	<script>
+	  // More info https://github.com/hakimel/reveal.js#configuration
+	  Reveal.initialize({
+        history: true,
+        //transition: 'none',
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'reveal.js/plugin/markdown/marked.js' },
+          { src: 'reveal.js/plugin/markdown/markdown.js' },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true },
+          { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+	  });
+	</script>
+  </body>
+</html>
