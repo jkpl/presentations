@@ -1,0 +1,375 @@
+<!doctype html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Patterns for testing Akka Actors</title>
+
+	<link rel="stylesheet" href="reveal.js/css/reveal.css">
+	<link rel="stylesheet" href="reveal.js/css/theme/night.css">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+	<!-- Printing and PDF exports -->
+	<script>
+	  var link = document.createElement( 'link' );
+	  link.rel = 'stylesheet';
+	  link.type = 'text/css';
+	  link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	  document.getElementsByTagName( 'head' )[0].appendChild( link );
+	</script>
+  </head>
+  <body>
+	<div class="reveal">
+	  <div class="slides">
+		<section>
+          <h1>Patterns for testing Akka Actors</h1>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Who am I?
+
+            Jaakko Pallari
+
+            Software Engineer @ Cake Solutions
+
+            Scala dev since late 2013
+
+            [Lepo.IO](https://lepo.io/) group member
+
+            Homepage: <https://lepo.io/team/jkpl>
+
+            Twitter: [@lepovirta](https://twitter.com/lepovirta)
+          </script>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Contents
+
+            1. Akka and Akka TestKit
+            2. Test probes
+            3. Autopilots
+            4. (Bonus) Example
+          </script>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Akka and Akka TestKit
+
+              * Akka: actor system framework for the JVM
+              * Messages over function calls
+              * Non-determinism
+              * Akka TestKit: tools for testing actors
+
+              ```scala
+              "com.typesafe.akka" %% "akka-actor" % "2.4.7"
+              "com.typesafe.akka" %% "akka-testkit" % "2.4.7"
+              "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### TestKit recommendations
+
+              * Create a base class for tests
+              * Use a clean actor system for tests
+              * Prefer async tests over sync tests
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Boilerplate for TestKit
+
+              ```scala
+              import akka.actor.ActorSystem
+              import akka.testkit.TestKit
+              import com.typesafe.config.{Config, ConfigFactory}
+              import org.scalatest.{FlatSpecLike, Matchers, BeforeAndAfterAll}
+
+              abstract class ActorSpecBaseKit(name: String, config: Config = ConfigFactory.empty())
+                extends TestKit(ActorSystem(name, config))
+                with FlatSpecLike with Matchers with BeforeAndAfterAll  {
+
+                override def afterAll(): Unit = {
+                  TestKit.shutdownActorSystem(system)
+                }
+              }
+
+              class MySpec extends ActorSpecBaseKit("MySpec") {
+                "Example" should "succeed" in { ... }
+              }
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Test probes
+
+              ```scala
+              import akka.testkit.TestProbe
+              val probe = TestProbe()
+
+              for (i <- 1 to 5) {
+                probe.ref ! "hello! " + i // Use .ref to get the actor reference
+              }
+
+              // Asserts equality. Also accepts a timeout.
+              probe.expectMsg("hello! 1")
+
+              // Match by class and return the value.
+              assert(probe.expectMsgClass(classOf[String]) == "hello! 2")
+
+              // Expect all given values and no other values
+              probe.expectMsgAllOf("hello! 3", "hello! 4", "hello! 5")
+
+              // Expect no messages.
+              probe.expectNoMsg()
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### More test probe features
+
+              * `expectMsgPF`: expect messages that match a pattern
+              * `receiveOne` and `receiveN`: receive 1 to N messages
+              * `send`: send message with probe as the sender
+              * `watch` and `unwatch`: monitor actor shutdown
+              * `setAutoPilot`: more on this later...
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Recommendations
+
+              * Prefer test probes over implicit sender
+                * Prevents messages from bleeding to other tests
+              * End probe tests with `expectNoMsg`
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Autopilots
+
+              Test probe automation
+
+              ```scala
+              import akka.actor.ActorRef
+              import akka.testkit.TestActor
+
+              val autoPiloted = TestProbe()
+              autoPiloted.setAutoPilot(new TestActor.AutoPilot {
+                def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
+                  if (msg == "ping") { sender ! "pong" }
+                  TestActor.KeepRunning
+                }
+              })
+
+              val probe = TestProbe()
+              probe.send(autoPiloted.ref, "ping")
+              probe.send(autoPiloted.ref, "hello")
+
+              probe.expectMsg("pong")
+              probe.expectNoMsg()
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Boilerplate for Autopilots
+
+              ```scala
+              def autoPilot(f: (ActorRef, Any) => TestActor.AutoPilot): TestActor.AutoPilot =
+                new TestActor.AutoPilot {
+                  def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = f(sender, msg)
+                }
+
+              def autoPilotProbe(f: (ActorRef, Any) => TestActor.AutoPilot): TestProbe = {
+                val p = TestProbe()
+                p.setAutoPilot(autoPilot(f))
+                p
+              }
+
+              val autoPiloted = autoPilotProbe { (sender, msg) =>
+                if (msg == "ping") { sender ! "pong" }
+                TestActor.KeepRunning
+              }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Autopilot vs. normal actors for testing
+
+              * Autopilots are easier to set up ad-hoc
+              * Autopilots have all the probe features
+              * Autopilots don't provide all normal actor features
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Example scenario
+
+              * The actor attaches metadata to incoming payloads.
+              * The enriched payloads are sent to a downstream actor that confirms the delivery.
+              * Unconfirmed payloads are redelivered after a timeout (at least once delivery)
+              * During start up, the actor subscribes for metadata updates to another actor.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Data types
+
+              ```scala
+              // Make a subscription for metadata notifications
+              case object Subscribe
+
+              // Confirmation for a successful delivery
+              final case class Confirm(deliveryId: Long)
+
+              // Metadata & data
+              final case class Metadata(data: Map[String, String])
+              final case class EnrichedData(deliveryId: Long, metadata: Metadata, payload: String)
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Testing with probes
+
+              ```scala
+              val metadata = Metadata(Map("foo" -> "bar"))
+              val metadataSource = TestProbe()
+              val downstream     = TestProbe()
+              val actor = system.actorOf(Enricher.props(metadataSource.ref, downstream.ref))
+
+              metadataSource.expectMsg(Subscribe)
+              metadataSource.send(actor, metadata)
+
+              actor ! "asdf"
+              downstream.expectMsg(EnrichedData(1L, metadata, "asdf"))
+              downstream.send(actor, Confirm(1L))
+
+              downstream.expectNoMsg(3.seconds)
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Automating donwstream confirmations
+
+              ```scala
+              def autoDownstream(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
+                msg match {
+                  case EnrichedData(deliveryId, _, _) => sender ! Confirm(deliveryId)
+                  case _ => // do nothing
+                }
+                TestActor.KeepRunning
+              }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Automating metadata subscriptions
+
+              ```scala
+              def autoMetadata
+                (subscriptions: Set[ActorRef], metadata: Metadata)
+                (sender: ActorRef, msg: Any): TestActor.AutoPilot =
+                msg match {
+                  case Subscribe =>
+                    sender ! metadata
+                    autoPilot(autoMetadata(subscriptions + sender, metadata))
+                  case m: Metadata =>
+                    subscriptions.foreach(sub => sub ! metadata)
+                    autoPilot(autoMetadata(subscriptions, m))
+                  case _ => TestActor.KeepRunning
+                }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Enhanced tests
+
+              ```scala
+              import scala.concurrent.duration._
+
+              val metadata1 = Metadata(Map("foo" -> "bar"))
+              val metadata2 = Metadata(Map("greeting" -> "hello world"))
+              val metadataSource = autoPilotProbe(autoMetadata(Set.empty, metadata1))
+              val downstream     = autoPilotProbe(autoDownstream)
+              val actor = system.actorOf(Enricher.props(metadataSource.ref, downstream.ref))
+
+              metadataSource.receiveOne(100.millis)
+              actor ! "asdf"
+
+              downstream.expectMsg(EnrichedData(1L, metadata1, "asdf"))
+
+              metadataSource.ref ! metadata2
+              metadataSource.receiveOne(100.millis)
+              actor ! "ohai"
+
+              downstream.expectMsg(EnrichedData(2L, metadata2, "ohai"))
+              downstream.expectNoMsg(3.seconds)
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Thank you
+          </script>
+        </section>
+	  </div>
+	</div>
+
+	<script src="reveal.js/lib/js/head.min.js"></script>
+	<script src="reveal.js/js/reveal.js"></script>
+
+	<script>
+	  // More info https://github.com/hakimel/reveal.js#configuration
+	  Reveal.initialize({
+        history: true,
+        //transition: 'none',
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'reveal.js/plugin/markdown/marked.js' },
+          { src: 'reveal.js/plugin/markdown/markdown.js' },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true },
+          { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+	  });
+	</script>
+  </body>
+</html>
