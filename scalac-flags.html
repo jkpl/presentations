@@ -1,0 +1,343 @@
+<!doctype html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Boosting code quality using Scala compiler flags</title>
+
+	<link rel="stylesheet" href="reveal.js/css/reveal.css">
+	<link rel="stylesheet" href="reveal.js/css/theme/night.css">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+	<!-- Printing and PDF exports -->
+	<script>
+	  var link = document.createElement( 'link' );
+	  link.rel = 'stylesheet';
+	  link.type = 'text/css';
+	  link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	  document.getElementsByTagName( 'head' )[0].appendChild( link );
+	</script>
+  </head>
+  <body>
+	<div class="reveal">
+	  <div class="slides">
+		<section>
+          <h1>Boosting code quality using Scala compiler flags</h1>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Who am I?
+
+            Jaakko Pallari
+
+            Software Engineer @ Cake Solutions
+
+            Scala dev since late 2013
+
+            [Lepo.IO](https://lepo.io/) group member
+
+            Homepage: <https://lepo.io/team/jkpl>
+
+            Twitter: [@lepovirta](https://twitter.com/lepovirta)
+          </script>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Code quality
+
+              Everyone can think of reasons why it's important.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Automating code quality checking
+
+              Analysing code for potential errors, code smells, and stylistic errors. (linting)
+
+              ```scala
+              def doStuff(name: String) {      // should be: ': Unit = {'
+                val date = new Date(102, 2, 2) // using deprecated API, unused variable
+                println("Hello, $name")        // missing string interpolation prefix
+                throw new RuntimeException()
+                println("How are you?")        // dead code
+              }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Different levels of linting
+
+              * IDE features
+              * External tools
+              * Build plugins
+              * **Compiler options**
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Nice flags to start with
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### -Xfatal-warnings
+
+              Turn your warnings into errors!
+
+              Otherwise no one will fix them.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### -feature
+
+              Warn when funky Scala features are used without importing the feature.
+
+              ```scala
+              import scala.language.implicitConversion
+
+              implicit def int2str(i: Int): String = i.toString
+              ```
+
+              ```
+              scalacOptions += "-language:implicitConversion"
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Familiar from Java
+
+              **-deprecation**: warnings for deprecated APIs
+
+              **-unchecked**: warnings when type-arguments are not specified
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## -Xlint
+
+              Collection of useful linting warnings.
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### infer-any
+
+              Warn when a type argument is inferred to be `Any`.
+
+              ```scala
+              val l1 = List(1, "foo")            // produces a warning
+              val l2: List[Any] = List(1, "foo") // no warning. same type as l2
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### missing-interpolator
+
+              Warn when string looks like it's using interpolation, but it's not.
+
+              ```scala
+              val name = "Jaakko"
+              "Hello, $name!" // Did you forget the interpolation prefix?
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### adapted-args
+
+              Warn if an argument list is modified to match the receiver.
+
+              ```scala
+              case class Wrap[A](value: A)
+
+              Wrap(1)       // Wrap[Int]
+              Wrap(1, 2)    // Wrap[(Int, Int)]
+              Wrap(1, 2, 3) // Wrap[(Int, Int, Int)]
+              Wrap((1, 2))  // Wrap[(Int, Int)]
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### ...and many more
+
+              Check out `scalac -Xlint:help` for more.
+
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Don't like a flag?
+
+              Disabling a linting flag:
+
+              ```
+              -Xlint:-missing-interpolator,_
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Other recommended flags
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### -Xfuture
+
+              Enable future compiler features.
+
+              ```scala
+              def doStuff() { // procedure syntax is deprecated
+                ...
+              }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### Unused code
+
+              -Ywarn-unused
+
+              -Ywarn-unused-import
+
+              -Ywarn-dead-code
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### -Ywarn-value-discard
+
+              Warn when non-Unit value is converted to Unit.
+
+              ```scala
+              // Print and return the given int.
+              def printed(i: Int): Int = { println(i); i }
+
+              // Result from printed is Int, but result of doStuff is Unit
+              def doStuff(): Unit = { printed(2) }
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ### -Ywarn-numeric-widen
+
+              ```scala
+              val x: Long = 100
+              val y: Double = x          // x is widened here implicitly
+              val z: Double = x.toDouble // explicit widening causes no warning
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## SBT example
+
+              ```scala
+              scalacOptions ++= Seq(
+                "-Xfatal-warnings",
+                "-feature",
+                "-deprecation",
+                "-unchecked",
+                "-Xlint",
+                "-Xfuture"
+                "-Ywarn-unused",
+                "-Ywarn-unused-import",
+                "-Ywarn-dead-code",
+                "-Ywarn-value-discard",
+                "-Ywarn-numeric-widen"
+              )
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ## More about flags
+
+              ```
+              $ scalac -X
+              $ scalac -Y
+              $ scalac -Xlint:help
+              $ man scalac
+              ```
+            </script>
+          </section>
+
+          <section data-markdown>
+            <script type="text/template">
+              ## More warnings!
+
+              WartRemover: code linting as an SBT plugin
+
+              <https://github.com/puffnfresh/wartremover>
+            </script>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Thank you
+          </script>
+        </section>
+	  </div>
+	</div>
+
+	<script src="reveal.js/lib/js/head.min.js"></script>
+	<script src="reveal.js/js/reveal.js"></script>
+
+	<script>
+	  // More info https://github.com/hakimel/reveal.js#configuration
+	  Reveal.initialize({
+        history: true,
+        //transition: 'none',
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'reveal.js/plugin/markdown/marked.js' },
+          { src: 'reveal.js/plugin/markdown/markdown.js' },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true },
+          { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+	  });
+	</script>
+  </body>
+</html>
