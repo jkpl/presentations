@@ -1,0 +1,801 @@
+<!doctype html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Do you expect exceptions?</title>
+
+	<link rel="stylesheet" href="reveal.js/css/reveal.css">
+	<link rel="stylesheet" href="reveal.js/css/theme/simple.css">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+	<!-- Printing and PDF exports -->
+	<script>
+	  var link = document.createElement( 'link' );
+	  link.rel = 'stylesheet';
+	  link.type = 'text/css';
+	  link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	  document.getElementsByTagName( 'head' )[0].appendChild( link );
+	</script>
+  </head>
+  <body>
+	<div class="reveal">
+	  <div class="slides">
+        <section>
+		  <section>
+            <h1>Do you expect exceptions?</h1>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Who am I?
+
+              Jaakko Pallari
+
+              Software Engineer @ Cake Solutions
+
+              Scala dev since late 2013
+
+              [Lepo.IO](https://lepo.io/) group member
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Contents
+
+              How error handling is (typically) done in Scala, and why is it that way.
+
+              Enforcing invariants in datatypes.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Disclaimer
+
+              There's a lot of details I'm going to skip.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Poll
+
+              How many...
+
+              * are new to Scala?
+              * have tried Scala?
+              * are active Scala developers/hobbyists?
+            </script>
+          </section>
+        </section>
+
+        <!--
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+            </script>
+          </section>
+        </section>
+        -->
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Let's start with an example
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Let's call a function
+              ```scala
+              val stuff: String = computeSomeStuff(inputString)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              1. Write some tests
+              2. Pull request
+              3. Code review
+              4. Merge and build for testing
+              5. Push to prod
+              6. ???
+              7. Profit!
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Weeks later
+
+              A production issue!
+
+              ```
+              $ curl http://asdf.com/endpoint?var=somethingspecial
+              500 Internal server error
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ### What happened?
+
+              ```scala
+              val stuff: String = computeSomeStuff(inputString)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Let's look at the doc
+
+              ```scala
+              /**
+                * Computes stuff.
+                *
+                * @param input input as a string
+                * @throws ComputeStuffException
+                */
+              def computeSomeStuff(input: String): String = { ... }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ## (╯°□°)╯︵ ┻━┻
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Let's fix it
+
+              ┬─┬﻿ ノ( ゜-゜ノ)
+
+              ```scala
+              try {
+                val stuff: String = computeSomeStuff(inputString)
+                ...
+              } catch {
+                case ex: ComputeStuffException =>
+                  doSomethingElse()
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Could be worse
+
+              We're lucky...
+
+              * the exception was documented.
+              * it didn't happen in asynchronous code.
+              * it didn't happen in a long-running batch process.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ### How could this happen?
+
+              The bug bypassed these steps
+
+              * Tests
+              * Code review
+              * Build in staging
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Tests & staging build
+
+              Nobody thought about passing in input that triggers the failure.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Code review
+
+              Nobody noticed the missing try-catch.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## How do we prevent this from happening again?
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Better test coverage
+
+              Property based testing for generating wide range of test inputs
+
+              ...but let's not focus on that today.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Make compiler work for you
+
+              Error handling enforced by the compiler:
+
+              make errors part of the type system
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### The effect: opt-out error handling
+
+              All errors have to be handled before we can continue.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Solution for representing failures
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Checked exceptions!
+
+              ```java
+              String computeStuff(String input) throws ComputeStuffException {
+                  ...
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### lol just kidding
+
+              They're not even in Scala!
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### To be fair...
+
+              Compiler will force you to handle checked exceptions.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### On the other hand...
+
+              They tend to be very clunky to actually use.
+
+              They don't compose well.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Representing failure cases in return types
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Introducing `Try`
+
+              A computation that might result into a failure.
+
+              ```scala
+              // rough approximation of Try
+              sealed trait Try[+A]
+              case class Success[+A](value: A) extends Try[A]
+              case class Failure[+A](t: Throwable) extends Try[A]
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              import scala.util.{Try, Success, Failure}
+
+              def computeSomeStuff(input: String): Try[String] = {
+                ...
+                if (...) Success(...)
+                else Failure(new ComputeStuffException)
+              }
+
+              val stuff: Try[String] = computeSomeStuff(inputString)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              val result: Try[String] = computeSomeStuff(input)
+                .flatMap(stuff: String => computeOtherStuff(stuff))
+                .map(otherStuff: String => otherStuff.trim)
+
+              // OR
+
+              val result: Try[String] = for {
+                stuff <- computeSomeStuff(input)
+                otherStuff <- computeOtherStuff(stuff)
+              } yield otherStuff.trim
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Unpacking `Try` safely
+
+              ```scala
+              result.getOrElse(someOtherStuff())
+
+              result.fold(
+                t: Throwable => someOtherStuff(),
+                s: String => "The Stuff: " + s
+              )
+
+              result match {
+                case Success(s) => s
+                case Failure(_) => someOtherStuff()
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Unpacking `Try` unsafely
+
+              ```scala
+              // This will rethrow the exception if the result is a failure
+              val s: String = result.get
+              ```
+
+              <p class="fragment">
+                ʕ•ᴥ•ʔノ "please fix this!"
+              </p>
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Auto-capturing all exceptions
+
+              ```scala
+              // Captures potential NumberFormatException
+              val couldBeNumber: Try[Int] = Try(someString.toInt)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Pros and cons
+
+              Pro: Brings exceptions to the type system.
+
+              Con: Relies on exceptions for representing failures.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Alternative types
+
+              Option
+
+              Either
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Option
+
+              Contains some value or no value at all.
+
+              ```scala
+              // rough approximation of Option
+              sealed trait Option[+A]
+              case class Some[+A](value: A) extends Option[A]
+              case object None extends Option[Nothing]
+              ```
+
+              Basically replaces `null` with something type-safe.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              val m: Map[String, Int] = Map("foo" -> 1, "bar" -> 2)
+              val foo: Option[Int] = m.get("foo")
+
+              foo.getOrElse(0)
+              foo.fold(0) { n: Int => n + 1 }
+              foo match {
+                case Some(n) => n
+                case None => 0
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              val maybeNumber: Option[Int] = Try(str.toInt).toOption
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              val sumOfFooAndBar: Option[Int] = for {
+                foo <- m.get("foo")
+                bar <- m.get("bar")
+              } yield foo + bar
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Either
+
+              Given a value of type `Either[A, B]`, the value can contain either a value of type `A` or `B`.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              sealed trait Either[+A, +B]
+              case class Left[+A, +B](value: A) extends Either[A, B]
+              case class Right[+A, +B](value: B) extends Either[A, B]
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Handwavy explanation
+
+              `Try[A]` ≅ `Either[Throwable, A]`
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## But wait! There's more!
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ScalaZ `Validation` for collecting more than one errors.
+
+              DIY AST (sealed trait + classes) for specific purposes.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Enforcing invariants in datatypes
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### What?
+
+              Making sure objects contain valid data.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Exception style
+
+              ```scala
+              import java.time.LocalDate
+
+              case class Conference(
+                name: String,
+                startDate: LocalDate,
+                endDate: LocalDate
+              ) {
+                require(name.nonEmpty)
+                require(
+                  startDate.isEqual(endDate) ||
+                  startDate.isBefore(endDate)
+                )
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              try {
+                val conference = Conference(
+                  "ScalaDays 2017",
+                  LocalDate.of(2017, 5, 30),
+                  LocalDate.of(2017, 6, 2)
+                )
+                ...
+              } catch {
+                case ex: IllegalArgumentException =>
+                  println(ex.getMessage)
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### With return types
+
+              ```scala
+              // private constructor, not a case class
+              class Conference private (
+                val name: String,
+                val startDate: LocalDate,
+                val endDate: LocalDate
+              )
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              object Conference {
+                def apply(
+                  name: String,
+                  startDate: LocalDate,
+                  endDate: LocalDate
+                ): Either[String, Conference] = {
+                  if (name.isEmpty)
+                    Left("Name shouldn't be empty")
+                  else if (startDate.isAfter(endDate))
+                    Left("Start date shouldn't be after end date")
+                  else
+                    Right(new Conference(name, startDate, endDate))
+                }
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              Conference(...) match {
+                case Right(conference) => signUp(conference)
+                case Left(error) => handleError(error)
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Regaining case class features
+
+              ```scala
+              sealed abstract case class Conference(
+                name: String,
+                startDate: LocalDate,
+                endDate: LocalDate
+              )
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              object Conference {
+                def apply(
+                  name: String,
+                  startDate: LocalDate,
+                  endDate: LocalDate
+                ): Either[String, Conference] = {
+                  if (name.isEmpty)
+                    Left("Name can't be empty")
+                  else if (startDate.isAfter(endDate))
+                    Left("Start date can't be after end date")
+                  else
+                    Right(new Conference(name, startDate, endDate) {})
+                }
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Pro: datatypes are always valid
+
+              Eliminates invalid, nonsensical objects from appearing in your code (or data storage).
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Con: modification/copying is hard
+
+              Case class copy is not available. Copying with modifications requires boilerplate and another validation.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Let's make datatype validation even better
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              class Name private (val name: String) extends AnyVal {
+                override def toString: String = name
+              }
+
+              object Name {
+                def apply(name: String): Either[String, Name] =
+                  if (name.nonEmpty) Right(new Name(name))
+                  else Left("Name can't be empty")
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              sealed abstract class DateRange(
+                startDate: LocalDate,
+                endDate: LocalDate
+              )
+
+              object DateRange {
+                def apply(
+                  startDate: LocalDate,
+                  endDate: LocalDate
+                ): Either[String, DateRange] = {
+                  if (startDate.isAfter(endDate))
+                    Left("Start date can't be after end date")
+                  else
+                    Right(new DateRange(startDate, endDate) {})
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```scala
+              case class Conference(name: Name, eventTime: DateRange)
+
+              val conf: Either[String, Conference] = for {
+                name <- Name("ScalaDays")
+                dateRange <- DateRange(
+                  LocalDate.of(2017, 5, 30),
+                  LocalDate.of(2017, 6, 2)
+                )
+              } yield Conference(name, dateRange)
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Exceptions for exceptions
+
+              When are exceptions / non-typesafe operations acceptable?
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Fatal exceptions
+
+              * OutOfMemoryError
+              * StackOverflowError
+              * ThreadDeath
+
+              etc.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Provably never gonna fail
+
+              ```scala
+              val x = y / 3  // This is OK
+              ```
+
+              vs.
+
+              ```scala
+              val x = 3 / y  // This might fail
+              ```
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Conclusions
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Exceptions escape the type system
+
+              Exceptions can be a fragile system to rely on for controlling "failure" scenarios.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Scala's alternatives for error handling
+
+              * Try
+              * Option
+              * Either
+              * Custom AST and many more
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Enforcing invariants in datatypes
+
+              * Helps restrict invalid data.
+              * Exception and type-safe styles
+              * More granular types require less validation in datatypes.
+            </script>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Thank you
+
+            <https://lepo.io/team/jkpl/>
+
+            [@lepovirta](https://twitter.com/lepovirta)
+          </script>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ### Links
+
+            * [Error Handling with Try](http://danielwestheide.com/blog/2012/12/26/the-neophytes-guide-to-scala-part-6-error-handling-with-try.html)
+            * [The Either Type](http://danielwestheide.com/blog/2013/01/02/the-neophytes-guide-to-scala-part-7-the-either-type.html)
+            * [Enforcing Invariants in Scala Datatypes](http://www.cakesolutions.net/teamblogs/enforcing-invariants-in-scala-datatypes)
+          </script>
+        </section>
+	  </div>
+	</div>
+
+	<script src="reveal.js/lib/js/head.min.js"></script>
+	<script src="reveal.js/js/reveal.js"></script>
+
+	<script>
+	  // More info https://github.com/hakimel/reveal.js#configuration
+	  Reveal.initialize({
+        history: true,
+        //transition: 'none',
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'reveal.js/plugin/markdown/marked.js' },
+          { src: 'reveal.js/plugin/markdown/markdown.js' },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true },
+          { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+	  });
+	</script>
+  </body>
+</html>
