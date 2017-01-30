@@ -510,10 +510,7 @@
                 endDate: LocalDate
               ) {
                 require(name.nonEmpty)
-                require(
-                  startDate.isEqual(endDate) ||
-                  startDate.isBefore(endDate)
-                )
+                require(!startDate.isAfter(endDate))
               }
               ```
             </script>
@@ -708,16 +705,35 @@
           </section>
           <section data-markdown>
             <script type="text/template">
+              ### Interfacing with an API / framework
+
+              Some APIs rely on exceptions for handling errors.
+
+              You still might want to restrict the use of exceptions in your code,
+              and push exceptions to the edges of your software.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Tests
+
+              Uncaught exceptions used for failing tests.
+
+              You still might want to use type-safe error handling and use `.get` in tests.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
               ### Provably never gonna fail
 
               ```scala
-              val x = y / 3  // This is OK
+              val y = x / 133.7  // This is OK
               ```
 
               vs.
 
               ```scala
-              val x = 3 / y  // This might fail
+              val y = 133.7 / x  // This might fail
               ```
             </script>
           </section>
