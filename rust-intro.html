@@ -1,0 +1,730 @@
+<!doctype html>
+<html>
+  <head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Lightweight intro to Rust</title>
+
+	<link rel="stylesheet" href="reveal.js/css/reveal.css">
+	<link rel="stylesheet" href="reveal.js/css/theme/simple.css">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+	<!-- Printing and PDF exports -->
+	<script>
+	  var link = document.createElement( 'link' );
+	  link.rel = 'stylesheet';
+	  link.type = 'text/css';
+	  link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	  document.getElementsByTagName( 'head' )[0].appendChild( link );
+	</script>
+  </head>
+  <body>
+	<div class="reveal">
+	  <div class="slides">
+        <!--
+        <section data-markdown>
+          <script type="text/template">
+          </script>
+        </section>
+        -->
+
+        <section>
+		  <section>
+            <h1>Lightweight intro to rust</h1>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### What is rust?
+
+              <span class="fragment fade-in" data-fragment-index="1">
+                iron oxide formed by the redox of iron and oxygen in the
+                presence of water or air moisture
+              </span>
+
+              <span class="fragment fade-in" data-fragment-index="1">
+                ![rusty chains](img/rustychain.jpg)
+              </span>
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Corrosion
+
+              weakens metal, making the structure brittle and crumbly
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### rust vs. go?
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### rust + go!
+
+              <span class="fragment fade-in">
+                "rust must go!"
+              </span>
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+                ![rust remover](img/rust_remover.jpg)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Conclusions
+
+              <span class="fragment fade-in">rust = corrosion of iron</span>
+
+              <span class="fragment fade-in">multi-platform</span>
+
+              <span class="fragment fade-in">considered harmful</span>
+
+              <span class="fragment fade-in">there are literally solutions out there</span>
+            </script>
+          </section>
+        </section>
+
+        <section>
+		  <section>
+            <h1>Lightweight intro to Rust</h1>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Contents
+
+              1. What is Rust?
+              2. Similarities to Scala
+              3. Memory management
+              4. Rust vs. Go
+              5. When to Rust?
+              6. Getting started
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### What is Rust?
+
+              a systems programming language developed by Mozilla
+
+              ![Rust logo](img/rust-logo.png)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Timeline
+
+              First appeared 2010
+
+              Version 1.0.0 released 2015-05-15
+
+              Latest version 1.16.0 released 2017-03-16
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Goals
+
+              Low-level efficiency rivaling C/C++
+
+              High-level efficiency rivaling FP languages
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Zero-cost abstractions
+
+              Features with little or no overhead costs.
+
+              Tiny runtime: no VM, no GC
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Lot's of compile-time features
+
+              type-safety
+
+              memory management
+
+              resource management
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Interoperability
+
+              Foreign function interface with C
+
+              * Call C code from Rust
+              * Call Rust code from C
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Similarities with Scala
+
+              ...and many other languages
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Record types
+
+              ```rust
+              struct Point { x: f64, y: f64 }
+
+              struct Radius(f64);
+
+              struct Circle {
+                  position: Point,
+                  radius: Radius,
+              }
+              ```
+
+              Continuous block of memory.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Methods
+
+              ```rust
+              impl Point {
+                  fn distance(&self, point: &Point) -> f64 {
+                      let dx = self.x - point.x;
+                      let dy = self.y - point.y;
+                      (dx * dx + dy * dy).sqrt()
+                  }
+              }
+
+              let p1 = Point { x: 1., y: 1. };
+              let p2 = Point { x: 1., y: 3. };
+              p1.distance(&p2)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Companion functions
+
+              ```rust
+              impl Circle {
+                  fn new(x: f64, y: f64, radius: f64) -> Circle {
+                      Circle {
+                          position: Point { x: x, y: y },
+                          radius: radius,
+                      }
+                  }
+              }
+
+              Circle::new(1., 2., 3.)
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Algebraic datatypes
+
+              ```rust
+              enum Maybe<T> {
+                  Just(T),
+                  Nothing,
+              }
+              ```
+
+              Note that non-reference based recursive types is not allowed!
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Pattern matching
+
+              ```rust
+              let x: Maybe<i32> = Maybe::Just(1);
+              match x {
+                  Maybe::Just(x) => println!("Got number: {}", x),
+                  Maybe::Nothing => println!("Got nothing!"),
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Option
+
+              ```rust
+              let x: Option<i32> = Option::Some(1);
+              match x {
+                  Option::Some(x) => println!("Got number: {}", x),
+                  Option::None => println!("Got nothing!"),
+              }
+              ```
+
+              Replaces nulls completely.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Result (equivalent of Try/Either)
+
+              ```rust
+              let x: Result<i32, &str> = Result::Ok(1);
+              match x {
+                  Result::Ok(x) => println!("Got number: {}", x),
+                  Result::Err(err) => println!("Got error: {}!", err),
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Traits (typeclasses)
+
+              ```rust
+              trait HasArea {
+                  fn area(&self) -> f64;
+              }
+
+              impl HasArea for Circle {
+                  fn area(&self) -> f64 {
+                      std::f64::consts::PI * (self.radius * self.radius)
+                  }
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Traits (typeclasses)
+
+              ```rust
+              fn print_area<T: HasArea>(x: T) {
+                  println!("Area: {}", x.area());
+              }
+
+              print_area(Circle {
+                  position: Point { x: 1., y: 2. },
+                  radius: 3.
+              })
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Compile times
+
+              ![XKCD 303](https://imgs.xkcd.com/comics/compiling.png)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### But wait, there's more!
+
+              * Generics
+              * Macros
+              * Type aliases
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Not included in Rust
+
+              * Nulls
+              * Inheritance
+              * Higher-kinded types
+              * Catchable exceptions
+              * Default and named parameters
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Memory management
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Goal
+
+              Automated memory management without GC.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Solution
+
+              Memory management resolved during compile-time.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Concepts
+
+              1. Ownership
+              2. Borrowing
+              3. Lifetime
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Ownership
+
+              Variable binding creates ownership for a scope.
+
+              ```rust
+              {
+                  let v = vec![1, 2, 3]; // v owns the vector
+              } // v expires
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Moving ownership
+
+              ```rust
+              let v = vec![1, 2, 3];
+              let v2 = v; // moved ownership for v2
+              // using v is not allowed anymore
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```rust
+              fn doStuff(v: Vec<i32>) { ... }
+
+              let v = vec![1, 2, 3];
+              doStuff(v) // ownership moved to doStuff
+              // using v is not allowed anymore
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Why?
+
+              * Deallocation on scope expiration
+              * Only one owner => no data races
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Borrowing
+
+              Unlimited immutable references.
+
+              ```rust
+              let v = vec![1, 2, 3];
+              let v2 = &v;
+              let v3 = &v;
+              // v is still usable here
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ```rust
+              fn doStuff(v: &Vec<i32>) { ... }
+
+              let v = vec![1, 2, 3];
+              doStuff(&v);
+              doStuff(&v);
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Mutability
+
+              Mutability is explicit.
+
+              ```rust
+              let mut p = Point { x: 1., y: 2. };
+              p.x = 2.;
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Mutable borrowing
+
+              Only one mutable reference available at a time.
+
+              ```rust
+              let mut p = Point { x: 1., y: 2. };
+              {
+                  let q = &mut p; // can't use p now
+                  q.x = 3.;
+              } // q expired, using p is available again
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Borrowing rules
+
+              unlimited immutable references
+
+              OR
+
+              one mutable reference and no immutable references
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Why?
+
+              * Prevents use after deallocation
+              * One mutable ref => no data races
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Consequences
+
+              * Favour immutable over mutable
+              * Favour pure functions over side-effects
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Lifetimes
+
+              What if we want values to exit scopes?
+
+              e.g. return values from functions
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Easy lifetimes
+
+              Move ownership back.
+
+              ```rust
+              fn move_by_one(p: &Point) -> Point {
+                  Point { x: p.x + 1., y: p.y + 1. }
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Harder lifetimes
+
+              ```rust
+              fn pick_higher(p1: &Point, p2: &Point) -> &Point {
+                  if p1.y > p2.y { p1 } else { p2 }
+              }
+              ```
+
+              This doesn't work...
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              We need a lifetime parameter.
+
+              ```rust
+              fn pick_higher<'a>(p1: &'a Point, p2: &'a Point) -> &'a Point {
+                  if p1.y > p2.y { p1 } else { p2 }
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Impossible lifetime
+
+              ```rust
+              fn create_point<'a>(n: f64) -> &'a Point {
+                  let p = Point { x: n, y: n };
+                  &p // p doesn't live long enough
+              }
+              ```
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Other cool stuff
+
+              RAII: resource management using Rust variable scope handling.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Rust vs. Go
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ![Apples vs Oranges](img/apples_vs_oranges.png)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ![Apples vs Durian](img/apples_vs_durian.png)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Similarities
+
+              Both copy and target C/C++ ecosystem...
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### ...but different features
+
+              **Go**: simple, C-like language with GC and out-of-the-box tooling
+
+              **Rust**: modern language with lightweight runtime
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Better questions
+
+              Rust vs. Swift?
+
+              Rust vs. D?
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## When to Rust?
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Alternative for C/C++
+
+              * Avoid the GC churn
+              * Space efficiency
+              * Interoperability with C
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Interfacing with C
+
+              Write your next C module in Rust!
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Learning
+
+              Get better understanding of manual memory management issues.
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### When NOT to Rust?
+
+              * When GC is good enough.
+              * When you need a rich ecosystem support.
+            </script>
+          </section>
+        </section>
+
+        <section>
+          <section data-markdown>
+            <script type="text/template">
+              ## Getting started
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### RustUp
+
+              ```
+              curl https://sh.rustup.rs -sSf | sh
+              ```
+
+              Installs and manages your Rust installation.
+
+              Tools: `rustc`, `cargo`
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### cargo
+
+              The standard build tool for Rust.
+
+              * TOML based build config
+              * Dependency management
+              * Project templates
+              * Tool installer
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### [Are We (I)DE Yet?](https://areweideyet.com/)
+
+              * IDE plugins: IntelliJ, Eclipse, Visual Studio
+              * Editor plugins: Emacs, Vim, Sublime, Atom, VS Code
+              * Standalone: [Ride](https://github.com/madeso/ride)
+            </script>
+          </section>
+          <section data-markdown>
+            <script type="text/template">
+              ### Guides
+
+              * [Rust Book](https://doc.rust-lang.org/book/)
+              * [Rust by Example](http://rustbyexample.com/)
+            </script>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## Thank you
+
+            Happy Rusting!
+          </script>
+        </section>
+	  </div>
+	</div>
+
+	<script src="reveal.js/lib/js/head.min.js"></script>
+	<script src="reveal.js/js/reveal.js"></script>
+
+	<script>
+	  // More info https://github.com/hakimel/reveal.js#configuration
+	  Reveal.initialize({
+        history: true,
+        transitionSpeed: 'fast',
+        //transition: 'none',
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'reveal.js/plugin/markdown/marked.js' },
+          { src: 'reveal.js/plugin/markdown/markdown.js' },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true },
+          { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+	  });
+	</script>
+  </body>
+</html>
